@@ -4,6 +4,7 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageView;
+import android.widget.ProgressBar;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
@@ -26,7 +27,7 @@ public class WeatherFragment extends Fragment {
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.fragment_weather, container, false);
-
+        ProgressBar loadingSpinner = view.findViewById(R.id.loading_spinner);
         TextView tvWeather = view.findViewById(R.id.tvWeather);
         ImageView ivWeatherIcon = view.findViewById(R.id.ivWeatherIcon);
 
@@ -39,6 +40,7 @@ public class WeatherFragment extends Fragment {
         String cityName = requireActivity().getIntent().getStringExtra("CITY_NAME");
 
         if(cityName != null && !cityName.isEmpty()){
+            loadingSpinner.setVisibility(View.VISIBLE);
             Call<GeoResponse> geoCall = apiService.getCityId(cityName.trim(),"1554571410ae42c79632f1a5399bd192");
             geoCall.enqueue(new Callback<GeoResponse>() {
                 @Override
@@ -52,10 +54,12 @@ public class WeatherFragment extends Fragment {
                                 @Override
                                 public void onResponse(Call<WeatherResponse> call, Response<WeatherResponse> response) {
                                     if (response.isSuccessful() && response.body() != null) {
+
                                         WeatherResponse weatherdata = response.body();
                                         String iconCode = weatherdata.now.icon;
                                         String temp = weatherdata.now.temp;
                                         String text = weatherdata.now.text;
+                                        loadingSpinner.setVisibility(View.GONE);
 
                                         int localImageResId = R.mipmap.ic_launcher;
                                         if (iconCode != null) {
@@ -76,30 +80,36 @@ public class WeatherFragment extends Fragment {
 
                                         tvWeather.setText(cityName + "的实时天气：\n" + text + "\n温度：\n" + temp + "℃");
                                     } else {
+                                        loadingSpinner.setVisibility(View.GONE);
                                         tvWeather.setText("查天气被拒，错误码：" + response.code());
                                     }
                                 }
 
                                 @Override
                                 public void onFailure(Call<WeatherResponse> call, Throwable t) {
+                                    loadingSpinner.setVisibility(View.GONE);
                                     tvWeather.setText("获取天气失败，请检查网络");
                                 }
                             });
                         } else {
+                            loadingSpinner.setVisibility(View.GONE);
                             tvWeather.setText("找不到这座城市");
                         }
                     } else {
+                        loadingSpinner.setVisibility(View.GONE);
                         tvWeather.setText("查城市ID被拒！错误码：" + response.code());
                     }
                 }
 
                 @Override
                 public void onFailure(Call<GeoResponse> call, Throwable t) {
+                    loadingSpinner.setVisibility(View.GONE);
                     tvWeather.setText("网络开小差了...");
                 }
             });
         } else {
-            tvWeather.setText("城市名字是空的");
+            loadingSpinner.setVisibility(View.GONE);
+            tvWeather.setText("未查询到该城市。");
         }
 
         return view;
