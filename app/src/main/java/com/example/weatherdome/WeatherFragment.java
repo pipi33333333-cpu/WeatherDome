@@ -4,6 +4,7 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageView;
+import android.widget.ProgressBar;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
@@ -26,7 +27,7 @@ public class WeatherFragment extends Fragment {
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.fragment_weather, container, false);
-
+        ProgressBar loadingSpinner = view.findViewById(R.id.loading_spinner);
         TextView tvWeather = view.findViewById(R.id.tvWeather);
         ImageView ivWeatherIcon = view.findViewById(R.id.ivWeatherIcon);
 
@@ -39,6 +40,7 @@ public class WeatherFragment extends Fragment {
         String cityName = requireActivity().getIntent().getStringExtra("CITY_NAME");
 
         if(cityName != null && !cityName.isEmpty()){
+            loadingSpinner.setVisibility(View.VISIBLE);
             Call<GeoResponse> geoCall = apiService.getCityId(cityName.trim(),"1554571410ae42c79632f1a5399bd192");
             geoCall.enqueue(new Callback<GeoResponse>() {
                 @Override
@@ -52,54 +54,41 @@ public class WeatherFragment extends Fragment {
                                 @Override
                                 public void onResponse(Call<WeatherResponse> call, Response<WeatherResponse> response) {
                                     if (response.isSuccessful() && response.body() != null) {
-                                        WeatherResponse weatherdata = response.body();
-                                        String iconCode = weatherdata.now.icon;
-                                        String temp = weatherdata.now.temp;
-                                        String text = weatherdata.now.text;
 
-                                        int localImageResId = R.mipmap.ic_launcher;
-                                        if (iconCode != null) {
-                                            if (iconCode.equals("100")) {
-                                                localImageResId = R.drawable.ic_sun;
-                                            } else if (iconCode.equals("101") || iconCode.equals("104")) {
-                                                localImageResId = R.drawable.ic_cloud;
-                                            } else if (iconCode.startsWith("3")) {
-                                                localImageResId = R.drawable.ic_rain;
-                                            } else if (iconCode.startsWith("4")) {
-                                                localImageResId = R.drawable.ic_snow;
-                                            }
-                                        }
+        observeViewModel();
 
-                                        Glide.with(requireContext())
-                                                .load(localImageResId)
-                                                .into(ivWeatherIcon);
+        //savedInstanceState它是 Android 系统自带的“现场恢复包”，用来标记当前页面究竟是第一次打开，还是旋转屏幕后被系统重新创建的
+        if(savedInstanceState == null&&getActivity()!=null&&getActivity().getIntent()!=null){
+            String cityName = getActivity().getIntent().getStringExtra("CITY_NAME");
+            if(cityName!=null&&!cityName.trim().isEmpty()){
+                weatherViewModel.loadWeather(cityName);
+            }
 
-                                        tvWeather.setText(cityName + "的实时天气：\n" + text + "\n温度：\n" + temp + "℃");
-                                    } else {
-                                        tvWeather.setText("查天气被拒，错误码：" + response.code());
-                                    }
-                                }
+        }
 
-                                @Override
-                                public void onFailure(Call<WeatherResponse> call, Throwable t) {
-                                    tvWeather.setText("获取天气失败，请检查网络");
-                                }
-                            });
-                        } else {
-                            tvWeather.setText("找不到这座城市");
-                        }
-                    } else {
-                        tvWeather.setText("查城市ID被拒！错误码：" + response.code());
-                    }
-                }
+    }
 
-                @Override
-                public void onFailure(Call<GeoResponse> call, Throwable t) {
+    private void observeViewModel(){
+        weatherViewModel.getUistate().observe(getViewLifecycleOwner(),state->{
+            if(state == null) return;
+            switch (state.getStatus()){
+                case IDLE:
+                    loadingSpinner.setVisibility(View.GONE);
+                    tvWeather.setText("请输入城市查询天气");
+                    ivWeatherIcon.setImageResource(R.mipmap.ic_launcher);
+                    break;
+                case LOADING:
+                    loadingSpinner.setVisibility(View.VISIBLE);
+                    tvWeather.setText("正在加载中...");
+                    break;
+                case SUCCESS:
+                    loadingSpinner.setVisibility(View.GONE);
                     tvWeather.setText("网络开小差了...");
                 }
             });
         } else {
-            tvWeather.setText("城市名字是空的");
+            loadingSpinner.setVisibility(View.GONE);
+            tvWeather.setText("未查询到该城市。");
         }
 
         return view;
