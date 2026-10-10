@@ -15,45 +15,27 @@ import com.bumptech.glide.Glide;
 
 import java.util.List;
 
-import retrofit2.Call;
-import retrofit2.Callback;
-import retrofit2.Response;
-import retrofit2.Retrofit;
-import retrofit2.converter.gson.GsonConverterFactory;
+import androidx.lifecycle.ViewModelProvider;
 
 public class WeatherFragment extends Fragment {
+    private ProgressBar loadingSpinner;
+    private TextView tvWeather;
+    private ImageView ivWeatherIcon;
+    private WeatherViewModel weatherViewModel;
 
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
-        View view = inflater.inflate(R.layout.fragment_weather, container, false);
-        ProgressBar loadingSpinner = view.findViewById(R.id.loading_spinner);
-        TextView tvWeather = view.findViewById(R.id.tvWeather);
-        ImageView ivWeatherIcon = view.findViewById(R.id.ivWeatherIcon);
+        return inflater.inflate(R.layout.fragment_weather,container,false);
+    }
+    @Override
+    public void onViewCreated(@NonNull View view,@Nullable Bundle savedInstanceState){
+        super.onViewCreated(view,savedInstanceState);
+        loadingSpinner = view.findViewById(R.id.loading_spinner);
+        tvWeather = view.findViewById(R.id.tvWeather);
+        ivWeatherIcon = view.findViewById(R.id.ivWeatherIcon);
 
-        Retrofit retrofit = new Retrofit.Builder()
-                .baseUrl("https://n93yft9bv7.re.qweatherapi.com/")
-                .addConverterFactory(GsonConverterFactory.create())
-                .build();
-        WeatherApiService apiService = retrofit.create(WeatherApiService.class);
-
-        String cityName = requireActivity().getIntent().getStringExtra("CITY_NAME");
-
-        if(cityName != null && !cityName.isEmpty()){
-            loadingSpinner.setVisibility(View.VISIBLE);
-            Call<GeoResponse> geoCall = apiService.getCityId(cityName.trim(),"1554571410ae42c79632f1a5399bd192");
-            geoCall.enqueue(new Callback<GeoResponse>() {
-                @Override
-                public void onResponse(Call<GeoResponse> call, Response<GeoResponse> response) {
-                    if (response.isSuccessful() && response.body() != null) {
-                        GeoResponse locationdata = response.body();
-                        if (locationdata.location != null && !locationdata.location.isEmpty()) {
-                            String locationId = locationdata.location.get(0).id;
-                            Call<WeatherResponse> weatherCall = apiService.getCurrentWeather(locationId, "1554571410ae42c79632f1a5399bd192");
-                            weatherCall.enqueue(new Callback<WeatherResponse>() {
-                                @Override
-                                public void onResponse(Call<WeatherResponse> call, Response<WeatherResponse> response) {
-                                    if (response.isSuccessful() && response.body() != null) {
+        weatherViewModel = new ViewModelProvider(this).get(WeatherViewModel.class);
 
         observeViewModel();
 
@@ -83,15 +65,28 @@ public class WeatherFragment extends Fragment {
                     break;
                 case SUCCESS:
                     loadingSpinner.setVisibility(View.GONE);
-                    tvWeather.setText("网络开小差了...");
-                }
-            });
-        } else {
-            loadingSpinner.setVisibility(View.GONE);
-            tvWeather.setText("未查询到该城市。");
-        }
+                    String displayText = state.getCityName()+"\n"+
+                            state.getWeatherText()+"\n\n"+
+                            state.getTemperature()+"°C";
+                    tvWeather.setText(displayText);
+                    Glide.with(this)
+                            .load(state.getIconResId())
+                            .into(ivWeatherIcon);
+                    break;
+                case  ERROR:
+                    loadingSpinner.setVisibility(View.GONE);
+                    tvWeather.setText(state.getErrorMessage());
+                    ivWeatherIcon.setImageResource(R.mipmap.ic_launcher);
+                    break;
+            }
 
-        return view;
+        });
     }
 }
+
+
+
+
+
+
 
