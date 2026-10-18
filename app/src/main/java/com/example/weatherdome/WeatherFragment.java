@@ -26,25 +26,6 @@ public class WeatherFragment extends Fragment {
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
-        return inflater.inflate(R.layout.fragment_weather,container,false);
-    }
-    @Override
-    public void onViewCreated(@NonNull View view,@Nullable Bundle savedInstanceState){
-        super.onViewCreated(view,savedInstanceState);
-        loadingSpinner = view.findViewById(R.id.loading_spinner);
-        tvWeather = view.findViewById(R.id.tvWeather);
-        ivWeatherIcon = view.findViewById(R.id.ivWeatherIcon);
-
-        weatherViewModel = new ViewModelProvider(this).get(WeatherViewModel.class);
-
-        observeViewModel();
-
-        //savedInstanceState它是 Android 系统自带的“现场恢复包”，用来标记当前页面究竟是第一次打开，还是旋转屏幕后被系统重新创建的
-        if(savedInstanceState == null&&getActivity()!=null&&getActivity().getIntent()!=null){
-            String cityName = getActivity().getIntent().getStringExtra("CITY_NAME");
-            if(cityName!=null&&!cityName.trim().isEmpty()){
-                weatherViewModel.loadWeather(cityName);
-            }
 
         }
 
