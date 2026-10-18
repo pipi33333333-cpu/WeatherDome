@@ -15,104 +15,59 @@ import com.bumptech.glide.Glide;
 
 import java.util.List;
 
-import retrofit2.Call;
-import retrofit2.Callback;
-import retrofit2.Response;
-import retrofit2.Retrofit;
-import retrofit2.converter.gson.GsonConverterFactory;
+import androidx.lifecycle.ViewModelProvider;
 
 public class WeatherFragment extends Fragment {
+    private ProgressBar loadingSpinner;
+    private TextView tvWeather;
+    private ImageView ivWeatherIcon;
+    private WeatherViewModel weatherViewModel;
 
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
-        View view = inflater.inflate(R.layout.fragment_weather, container, false);
-        ProgressBar loadingSpinner = view.findViewById(R.id.loading_spinner);
-        TextView tvWeather = view.findViewById(R.id.tvWeather);
-        ImageView ivWeatherIcon = view.findViewById(R.id.ivWeatherIcon);
 
-        Retrofit retrofit = new Retrofit.Builder()
-                .baseUrl("https://n93yft9bv7.re.qweatherapi.com/")
-                .addConverterFactory(GsonConverterFactory.create())
-                .build();
-        WeatherApiService apiService = retrofit.create(WeatherApiService.class);
-
-        String cityName = requireActivity().getIntent().getStringExtra("CITY_NAME");
-
-        if(cityName != null && !cityName.isEmpty()){
-            loadingSpinner.setVisibility(View.VISIBLE);
-            Call<GeoResponse> geoCall = apiService.getCityId(cityName.trim(),"1554571410ae42c79632f1a5399bd192");
-            geoCall.enqueue(new Callback<GeoResponse>() {
-                @Override
-                public void onResponse(Call<GeoResponse> call, Response<GeoResponse> response) {
-                    if (response.isSuccessful() && response.body() != null) {
-                        GeoResponse locationdata = response.body();
-                        if (locationdata.location != null && !locationdata.location.isEmpty()) {
-                            String locationId = locationdata.location.get(0).id;
-                            Call<WeatherResponse> weatherCall = apiService.getCurrentWeather(locationId, "1554571410ae42c79632f1a5399bd192");
-                            weatherCall.enqueue(new Callback<WeatherResponse>() {
-                                @Override
-                                public void onResponse(Call<WeatherResponse> call, Response<WeatherResponse> response) {
-                                    if (response.isSuccessful() && response.body() != null) {
-
-                                        WeatherResponse weatherdata = response.body();
-                                        String iconCode = weatherdata.now.icon;
-                                        String temp = weatherdata.now.temp;
-                                        String text = weatherdata.now.text;
-                                        loadingSpinner.setVisibility(View.GONE);
-
-                                        int localImageResId = R.mipmap.ic_launcher;
-                                        if (iconCode != null) {
-                                            if (iconCode.equals("100")) {
-                                                localImageResId = R.drawable.ic_sun;
-                                            } else if (iconCode.equals("101") || iconCode.equals("104")) {
-                                                localImageResId = R.drawable.ic_cloud;
-                                            } else if (iconCode.startsWith("3")) {
-                                                localImageResId = R.drawable.ic_rain;
-                                            } else if (iconCode.startsWith("4")) {
-                                                localImageResId = R.drawable.ic_snow;
-                                            }
-                                        }
-
-                                        Glide.with(requireContext())
-                                                .load(localImageResId)
-                                                .into(ivWeatherIcon);
-
-                                        tvWeather.setText(cityName + "的实时天气：\n" + text + "\n温度：\n" + temp + "℃");
-                                    } else {
-                                        loadingSpinner.setVisibility(View.GONE);
-                                        tvWeather.setText("查天气被拒，错误码：" + response.code());
-                                    }
-                                }
-
-                                @Override
-                                public void onFailure(Call<WeatherResponse> call, Throwable t) {
-                                    loadingSpinner.setVisibility(View.GONE);
-                                    tvWeather.setText("获取天气失败，请检查网络");
-                                }
-                            });
-                        } else {
-                            loadingSpinner.setVisibility(View.GONE);
-                            tvWeather.setText("找不到这座城市");
-                        }
-                    } else {
-                        loadingSpinner.setVisibility(View.GONE);
-                        tvWeather.setText("查城市ID被拒！错误码：" + response.code());
-                    }
-                }
-
-                @Override
-                public void onFailure(Call<GeoResponse> call, Throwable t) {
-                    loadingSpinner.setVisibility(View.GONE);
-                    tvWeather.setText("网络开小差了...");
-                }
-            });
-        } else {
-            loadingSpinner.setVisibility(View.GONE);
-            tvWeather.setText("未查询到该城市。");
         }
 
-        return view;
+    }
+
+    private void observeViewModel(){
+        weatherViewModel.getUistate().observe(getViewLifecycleOwner(),state->{
+            if(state == null) return;
+            switch (state.getStatus()){
+                case IDLE:
+                    loadingSpinner.setVisibility(View.GONE);
+                    tvWeather.setText("请输入城市查询天气");
+                    ivWeatherIcon.setImageResource(R.mipmap.ic_launcher);
+                    break;
+                case LOADING:
+                    loadingSpinner.setVisibility(View.VISIBLE);
+                    tvWeather.setText("正在加载中...");
+                    break;
+                case SUCCESS:
+                    loadingSpinner.setVisibility(View.GONE);
+                    String displayText = state.getCityName()+"\n"+
+                            state.getWeatherText()+"\n\n"+
+                            state.getTemperature()+"°C";
+                    tvWeather.setText(displayText);
+                    Glide.with(this)
+                            .load(state.getIconResId())
+                            .into(ivWeatherIcon);
+                    break;
+                case  ERROR:
+                    loadingSpinner.setVisibility(View.GONE);
+                    tvWeather.setText(state.getErrorMessage());
+                    ivWeatherIcon.setImageResource(R.mipmap.ic_launcher);
+                    break;
+            }
+
+        });
     }
 }
+
+
+
+
+
+
 

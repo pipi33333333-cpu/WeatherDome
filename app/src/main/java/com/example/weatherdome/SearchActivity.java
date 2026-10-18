@@ -29,7 +29,11 @@ public class SearchActivity extends AppCompatActivity {
         btnSearch.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                String location = etLocation.getText().toString();
+                String location = etLocation.getText().toString().trim();
+                if(location.isEmpty()){
+                    etLocation.setError("请输入有效的城市名称");
+                    return;
+                }
                 Intent intent = new Intent(SearchActivity.this,MainActivity.class);
                 intent.putExtra("CITY_NAME",location);
                 startActivity(intent);
